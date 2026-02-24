@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Copilot Conversation Formatter</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 30px; }
+textarea { width:100%; height:250px; padding:10px; font-size:14px; margin-bottom:10px; }
+input[type="text"] { padding:6px; font-size:14px; margin-right:10px; width:250px; }
+button { padding:10px 20px; font-size:14px; cursor:pointer; margin-right:10px; }
+.conversation { margin-top:20px; display:flex; flex-direction:column; }
+.message { max-width:70%; padding:12px; margin:10px 0; border-radius:10px; white-space:pre-wrap; }
+.user { align-self:flex-start; background-color:#f1f1f1; }
+.copilot { align-self:flex-end; background-color:#dbeafe; }
+.label { font-size:12px; font-weight:bold; margin-bottom:6px; opacity:0.6; }
+</style>
+</head>
+<body>
+
+<h2>Copilot Conversation Formatter</h2>
+
+<textarea id="inputText" placeholder="Paste transcript here using User: and Copilot: labels"></textarea><br>
+<button id="formatBtn">Format Transcript</button><br><br>
+
+<label for="filename">File name:</label>
+<input type="text" id="filename" placeholder="formatted_chat.txt">
+<button id="downloadBtn">Download Formatted Chat</button>
+
+<div id="output" class="conversation"></div>
+
+<script>
+let formattedText = "";
+
+document.getElementById("formatBtn").addEventListener("click", function() {
+    const input = document.getElementById("inputText").value.trim();
+    const output = document.getElementById("output");
+    output.innerHTML = "";
+    formattedText = "";
+
+    if (!input) { alert("Please paste a transcript first."); return; }
+
+    const lines = input.split(/\r?\n/);
+    let currentSpeaker = null;
+    let currentMessage = "";
+
+    function cleanCopilotText(text) {
+        return text
+            .replace(/\r?\n{2,}/g, "\n\n")   // keep paragraph breaks
+            .replace(/\r?\n/g, " ")           // single line breaks → space
+            .replace(/\s+/g, " ")             // remove multiple spaces
+            .replace(/\s+\n/g, "\n")          // trim space before paragraph breaks
+            .trim();
+    }
+
+    function appendMessage(speaker, text) {
+        if (!text.trim()) return;
+
+        let cleanedText = speaker === "copilot" ? cleanCopilotText(text) : text;
+        formattedText += (speaker === "user" ? "User: " : "Copilot: ") + cleanedText + "\n\n";
+
+        const msgDiv = document.createElement("div");
+        msgDiv.classList.add("message", speaker);
+
+        const labelDiv = document.createElement("div");
+        labelDiv.classList.add("label");
+        labelDiv.textContent = speaker === "user" ? "User" : "Copilot";
+
+        const contentDiv = document.createElement("div");
+        contentDiv.textContent = cleanedText;
+
+        msgDiv.appendChild(labelDiv);
+        msgDiv.appendChild(contentDiv);
+        output.appendChild(msgDiv);
+    }
+
+    lines.forEach(line => {
+        if (line.startsWith("User:")) {
+            if (currentSpeaker) appendMessage(currentSpeaker, currentMessage);
+            currentSpeaker = "user";
+            currentMessage = line.replace("User:", "").trim() + "\n";
+        } else if (line.startsWith("Copilot:")) {
+            if (currentSpeaker) appendMessage(currentSpeaker, currentMessage);
+            currentSpeaker = "copilot";
+            currentMessage = line.replace("Copilot:", "").trim() + "\n";
+        } else {
+            currentMessage += line + "\n";
+        }
+    });
+
+    if (currentSpeaker) appendMessage(currentSpeaker, currentMessage);
+});
+
+document.getElementById("downloadBtn").addEventListener("click", function() {
+    if (!formattedText) {
+        alert("No formatted conversation to download. Please click 'Format Transcript' first.");
+        return;
+    }
+
+    let filename = document.getElementById("filename").value.trim();
+    if (!filename) filename = "formatted_chat.txt";
+    if (!filename.endsWith(".txt")) filename += ".txt";
+
+    const blob = new Blob([formattedText], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
+</script>
+
+</body>
+</html>
